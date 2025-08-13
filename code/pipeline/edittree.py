@@ -28,6 +28,39 @@ class EditTreeNode(object):
                 return -1
 
             return word_left + word_mid + word_right
+        
+    def lemmatize(self, word):
+        assert isinstance(word, str)
+
+        # If the node is a replacement rule
+        if isinstance(self.val[0], str):  # replace
+            # Reverse the mapping: if inflected form matches target, return source
+            if word == self.val[1]:
+                return self.val[0]
+            else:
+                return -1
+
+        # If the node is a split rule
+        elif isinstance(self.val[0], int):  # split
+            assert isinstance(self.left, EditTreeNode)
+            assert isinstance(self.right, EditTreeNode)
+
+            # Break the inflected word into parts
+            word_left = word[:self.val[0]]
+            word_mid = word[self.val[0]: len(word) - self.val[1]]
+            word_right = word[len(word) - self.val[1]:]
+
+            # Reverse: lemmatize left and right chunks
+            lemma_left = self.left.lemmatize(word_left)
+            lemma_right = self.right.lemmatize(word_right)
+
+            if lemma_left == -1 or lemma_right == -1:
+                return -1
+
+            # Put the lemma back together
+            return lemma_left + word_mid + lemma_right
+
+
 
     def __str__(self):
         if self.left is None:  # leaf
