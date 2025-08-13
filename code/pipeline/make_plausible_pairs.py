@@ -1,9 +1,22 @@
 import os
 import argparse
+from multiprocessing import Pool, cpu_count
+
+from tqdm import tqdm
 
 from edittree import longestSubstring
 
 PLAUSIBLE_THRESHOLD = 0.5
+
+
+def process_lemma(lemma_vocab_args):
+    lemma, vocab, threshold = lemma_vocab_args
+    plausible_words = set()
+    for word in vocab:
+        idx1, idx2, size = longestSubstring(lemma, word)
+        if (float(size) / len(lemma) >= threshold):
+            plausible_words.add(word)
+    return lemma, plausible_words
 
 
 if __name__ == '__main__':
@@ -58,20 +71,21 @@ if __name__ == '__main__':
     pairs = 0
     plausible_lw_pairs = {}
     print("Pairing and filtering vocabs and lemmas ... ", end='', flush=True)
-    for lemma in lemmas:
-        plausible_lw_pairs[lemma] = set()
-        for word in vocab:
-            idx1, idx2, size = longestSubstring(lemma, word)
-            if (float(size) / len(lemma) >= PLAUSIBLE_THRESHOLD):
-                plausible_lw_pairs[lemma].add(word)
-        pairs += len(plausible_lw_pairs[lemma])
-    print("Done. ({} pairs)".format(pairs))
+    with Pool(processes=cpu_count()) as pool:
+        results = pool.map(
+            process_lemma,
+            [(lemma, vocab, PLAUSIBLE_THRESHOLD) for lemma in lemmas]
+        )
+
+    plausible_lw_pairs = dict(results)
+    pairs = sum(len(words) for words in plausible_lw_pairs.values())
+    print(f"Done. ({pairs} pairs)")
 
     # output
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     with open(output_path, 'w') as f_out:
-        for lemma in plausible_lw_pairs:
+        for lemma in tqdm(plausible_lw_pairs,desc="Now collecting paradigms"):
             weight = lemma_weight[lemma]
             for word in plausible_lw_pairs[lemma]:
                 f_out.write("{}\t{}\t{}\n".format(lemma, word, weight))
