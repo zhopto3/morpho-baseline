@@ -1,7 +1,7 @@
 import os
 import pickle
 import argparse
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from edittree import editTree
 
@@ -14,6 +14,8 @@ if __name__ == '__main__':
                         help="the path to save the filtered edit trees")
     parser.add_argument('--verbose', action='store_true',
                         help="the flag to show more running details")
+    parser.add_argument("--lemmatizer",action='store_true',
+                         help='Flag to compute the edit trees in the reverse order, i.e., to lemmatize rather than generate paradigms.')
     args = parser.parse_args()
 
     # build paths
@@ -48,10 +50,16 @@ if __name__ == '__main__':
     print("Computing edit trees ... ", end='', flush=True)
     for lemma in plausible_lw_pairs:
         for word in plausible_lw_pairs[lemma]:
-            et = editTree(lemma, word)
-            weight = pair_weight[(lemma, word)]
-            et_record[et].append((lemma, word, weight))
-            et_weight[et] += weight
+            if args.lemmatizer:
+                et = editTree(word,lemma)
+                weight = pair_weight[(lemma,word)]
+                et_record[et].append((word, lemma, weight))
+                et_weight[et] += weight
+            else:
+                et = editTree(lemma, word)
+                weight = pair_weight[(lemma, word)]
+                et_record[et].append((lemma, word, weight))
+                et_weight[et] += weight
     print("Done. ({} edit trees)".format(len(et_record)))
 
     if args.verbose:
